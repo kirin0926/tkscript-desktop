@@ -1,6 +1,6 @@
-import WelcomeKit from '@/app/components/welcome/WelcomeKit'
 import './styles/app.css'
+import { AdminLayout } from '@/app/components/layout/AdminLayout'
 
 export default function App() {
-  return <WelcomeKit />
+  return <AdminLayout />
 }

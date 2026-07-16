@@ -1,0 +1,38 @@
+import { cn } from '@/lib/utils'
+import { navItems, type PanelKey } from './nav-items'
+
+interface SidebarProps {
+  activeKey: PanelKey
+  onSelect: (key: PanelKey) => void
+}
+
+export const Sidebar = ({ activeKey, onSelect }: SidebarProps) => {
+  return (
+    <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
+      <div className="flex h-12 shrink-0 items-center px-4 text-sm font-semibold">TKscript</div>
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
+        {navItems.map((item) => {
+          const Icon = item.icon
+          const active = item.key === activeKey
+          return (
+            <button
+              key={item.key}
+              type="button"
+              aria-current={active ? 'page' : undefined}
+              onClick={() => onSelect(item.key)}
+              className={cn(
+                'flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition-colors',
+                'hover:bg-sidebar-accent hover:text-sidebar-accent-foreground',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring',
+                active ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground' : 'text-sidebar-foreground/80'
+              )}
+            >
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
+              <span className="truncate">{item.label}</span>
+            </button>
+          )
+        })}
+      </nav>
+    </aside>
+  )
+}
