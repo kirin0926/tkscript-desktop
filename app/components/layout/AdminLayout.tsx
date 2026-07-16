@@ -25,7 +25,7 @@ export const AdminLayout = () => {
   return (
     <div className="flex h-full overflow-hidden bg-background text-foreground">
       <Sidebar activeKey={activeKey} onSelect={setActiveKey} />
-      <main className="flex-1 overflow-y-auto">
+      <main className="flex-1 overflow-hidden">
         <ActivePanel />
       </main>
     </div>
