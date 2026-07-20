@@ -1,17 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSettings } from '@/app/components/settings/SettingsContext'
+import { useConveyor } from '@/app/hooks/use-conveyor'
 import { Input } from '@/app/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select'
+import type { FpGroup } from '@/lib/conveyor/schemas/fingerprint-schema'
 import { Field, FormSection, PanelShell } from './panel-kit'
 
 export const PublishSettingsPanel = () => {
-  const [apiHost, setApiHost] = useState('http://127.0.0.1')
-  const [apiPort, setApiPort] = useState('50325')
-  const [group, setGroup] = useState('all')
-  const [windowSeq, setWindowSeq] = useState('')
-  const [threads, setThreads] = useState('1')
-  const [perAccount, setPerAccount] = useState('1')
-  const [rounds, setRounds] = useState('1')
-  const [uploadWait, setUploadWait] = useState('30')
+  const { settings, update } = useSettings()
+  const { listGroups } = useConveyor('fingerprint')
+  const publish = settings.publish
+
+  const [groups, setGroups] = useState<FpGroup[]>([])
+  // 以 ref 持有最新连接参数，避免在编辑地址/端口时每次按键都重新拉取分组。
+  const connRef = useRef({ apiHost: publish.apiHost, apiPort: publish.apiPort })
+  connRef.current = { apiHost: publish.apiHost, apiPort: publish.apiPort }
+
+  useEffect(() => {
+    listGroups(connRef.current)
+      .then(setGroups)
+      .catch(() => setGroups([]))
+  }, [listGroups])
 
   return (
     <PanelShell title="发布设置" description="配置指纹浏览器连接与发布并发策略">
@@ -20,8 +29,8 @@ export const PublishSettingsPanel = () => {
           <Field label="API 地址" htmlFor="publish-api-host" className="sm:col-span-2">
             <Input
               id="publish-api-host"
-              value={apiHost}
-              onChange={(e) => setApiHost(e.target.value)}
+              value={publish.apiHost}
+              onChange={(e) => update('publish', { apiHost: e.target.value })}
               placeholder="http://127.0.0.1"
             />
           </Field>
@@ -30,8 +39,8 @@ export const PublishSettingsPanel = () => {
               id="publish-api-port"
               type="number"
               min={0}
-              value={apiPort}
-              onChange={(e) => setApiPort(e.target.value)}
+              value={publish.apiPort}
+              onChange={(e) => update('publish', { apiPort: e.target.value })}
               placeholder="50325"
             />
           </Field>
@@ -39,22 +48,27 @@ export const PublishSettingsPanel = () => {
 
         <FormSection title="窗口与并发">
           <Field label="分组" htmlFor="publish-group">
-            <Select value={group} onValueChange={setGroup}>
+            <Select value={publish.group} onValueChange={(value) => update('publish', { group: value })}>
               <SelectTrigger id="publish-group" className="w-full">
                 <SelectValue placeholder="选择分组" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">全部分组</SelectItem>
-                <SelectItem value="group-a">分组 A</SelectItem>
-                <SelectItem value="group-b">分组 B</SelectItem>
+                {groups
+                  .filter((group) => group.id !== 'all')
+                  .map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="窗口序列" htmlFor="publish-window-seq" hint="支持区间或逗号分隔，如 1-10 或 1,3,5">
             <Input
               id="publish-window-seq"
-              value={windowSeq}
-              onChange={(e) => setWindowSeq(e.target.value)}
+              value={publish.windowSeq}
+              onChange={(e) => update('publish', { windowSeq: e.target.value })}
               placeholder="1-10"
             />
           </Field>
@@ -63,8 +77,8 @@ export const PublishSettingsPanel = () => {
               id="publish-threads"
               type="number"
               min={1}
-              value={threads}
-              onChange={(e) => setThreads(e.target.value)}
+              value={publish.threads}
+              onChange={(e) => update('publish', { threads: e.target.value })}
             />
           </Field>
         </FormSection>
@@ -75,8 +89,8 @@ export const PublishSettingsPanel = () => {
               id="publish-per-account"
               type="number"
               min={1}
-              value={perAccount}
-              onChange={(e) => setPerAccount(e.target.value)}
+              value={publish.perAccount}
+              onChange={(e) => update('publish', { perAccount: e.target.value })}
             />
           </Field>
           <Field label="发布轮数" htmlFor="publish-rounds">
@@ -84,8 +98,8 @@ export const PublishSettingsPanel = () => {
               id="publish-rounds"
               type="number"
               min={1}
-              value={rounds}
-              onChange={(e) => setRounds(e.target.value)}
+              value={publish.rounds}
+              onChange={(e) => update('publish', { rounds: e.target.value })}
             />
           </Field>
           <Field label="上传等待时间（秒）" htmlFor="publish-upload-wait">
@@ -93,8 +107,8 @@ export const PublishSettingsPanel = () => {
               id="publish-upload-wait"
               type="number"
               min={0}
-              value={uploadWait}
-              onChange={(e) => setUploadWait(e.target.value)}
+              value={publish.uploadWait}
+              onChange={(e) => update('publish', { uploadWait: e.target.value })}
             />
           </Field>
         </FormSection>

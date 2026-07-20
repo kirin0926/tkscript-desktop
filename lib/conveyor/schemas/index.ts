@@ -1,11 +1,17 @@
 import { z } from 'zod'
 import { windowIpcSchema } from './window-schema'
 import { appIpcSchema } from './app-schema'
+import { settingsIpcSchema } from './settings-schema'
+import { dialogIpcSchema } from './dialog-schema'
+import { fingerprintIpcSchema } from './fingerprint-schema'
 
 // Define all IPC channel schemas in one place
 export const ipcSchemas = {
   ...windowIpcSchema,
   ...appIpcSchema,
+  ...settingsIpcSchema,
+  ...dialogIpcSchema,
+  ...fingerprintIpcSchema,
 } as const
 
 // Extract types from Zod schemas
