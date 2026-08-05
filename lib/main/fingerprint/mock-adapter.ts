@@ -1,4 +1,4 @@
-import type { FingerprintAdapter, FpGroup, FpWindow } from './types'
+import type { FingerprintAdapter, FpGroup, FpOpenWindowReturn, FpWindow } from './types'
 
 // 示例窗口，用于无真实指纹浏览器时的开发与演示。
 const MOCK_WINDOWS: FpWindow[] = [
@@ -13,7 +13,16 @@ const MOCK_GROUPS: FpGroup[] = [
   { id: 'group-b', name: '分组 B' },
 ]
 
+// 用于 mock 模式下递增的调试端口，避免多个窗口端口冲突。
+let mockDebugPort = 9333
+
 export const mockAdapter: FingerprintAdapter = {
   listWindows: () => Promise.resolve(MOCK_WINDOWS),
   listGroups: () => Promise.resolve(MOCK_GROUPS),
+  openWindow: (_conn, profileId) => {
+    const debugPort = mockDebugPort++
+    const result: FpOpenWindowReturn = { profileId, debugPort }
+    return Promise.resolve(result)
+  },
+  closeWindow: () => Promise.resolve(true),
 }

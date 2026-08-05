@@ -50,7 +50,7 @@ export type AppSettings = z.infer<typeof appSettingsSchema>
 export const DEFAULT_SETTINGS: AppSettings = {
   publish: {
     apiHost: 'http://127.0.0.1',
-    apiPort: '50325',
+    apiPort: '53200',
     group: 'all',
     windowSeq: '',
     threads: '1',
