@@ -1,4 +1,5 @@
-import { resolve } from 'path'
+import { copyFileSync, mkdirSync, readdirSync, statSync } from 'fs'
+import { resolve, join } from 'path'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
@@ -8,6 +9,29 @@ const aliases = {
   '@/app': resolve(__dirname, 'app'),
   '@/lib': resolve(__dirname, 'lib'),
   '@/resources': resolve(__dirname, 'resources'),
+}
+
+/**
+ * 将迁移文件从源码目录复制到构建输出目录
+ */
+const copyMigrations = (): void => {
+  const src = resolve(__dirname, 'lib', 'main', 'db', 'migrations')
+  const dest = resolve(__dirname, 'out', 'main', 'migrations')
+
+  const copyRecursive = (from: string, to: string): void => {
+    mkdirSync(to, { recursive: true })
+    for (const entry of readdirSync(from)) {
+      const srcPath = join(from, entry)
+      const destPath = join(to, entry)
+      if (statSync(srcPath).isDirectory()) {
+        copyRecursive(srcPath, destPath)
+      } else {
+        copyFileSync(srcPath, destPath)
+      }
+    }
+  }
+
+  copyRecursive(src, dest)
 }
 
 export default defineConfig({
@@ -22,7 +46,13 @@ export default defineConfig({
     resolve: {
       alias: aliases,
     },
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin(),
+      {
+        name: 'copy-migrations',
+        closeBundle: copyMigrations,
+      },
+    ],
   },
   preload: {
     build: {

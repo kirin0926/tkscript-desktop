@@ -1,18 +1,16 @@
-import { readFile, rename, writeFile } from 'node:fs/promises'
+import { eq } from 'drizzle-orm'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
 import { appSettingsSchema, DEFAULT_SETTINGS, type AppSettings } from '@/lib/conveyor/schemas/settings-schema'
+import { getDatabase, schema } from '@/lib/main/db'
 
-const SETTINGS_FILE = 'settings.json'
-
-// 主进程内存副本，读操作直接返回它，避免频繁读盘。
+// 主进程内存副本，避免频繁读库
 let cache: AppSettings | null = null
 
-const getFilePath = () => join(app.getPath('userData'), SETTINGS_FILE)
-
 /**
- * 将磁盘上的原始对象按分组合并到默认值之上，
- * 使新增字段或旧文件缺字段时不会整体回退，提升前后兼容性。
+ * 将数据库原始对象按分组合并到默认值之上，
+ * 使新增字段或旧数据缺字段时不会整体回退，提升前后兼容性。
  */
 const mergeWithDefaults = (raw: unknown): AppSettings => {
   const source = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {}
@@ -31,15 +29,46 @@ const mergeWithDefaults = (raw: unknown): AppSettings => {
 }
 
 /**
- * 读取设置：文件缺失、内容为空、JSON 解析失败或校验失败时回退默认值，不抛出。
+ * 从旧 JSON 文件导入设置（一次性迁移）
+ */
+const migrateFromJsonFile = async (): Promise<AppSettings | null> => {
+  try {
+    const filePath = join(app.getPath('userData'), 'settings.json')
+    const raw = await readFile(filePath, 'utf-8')
+    const parsed = JSON.parse(raw)
+    const settings = mergeWithDefaults(parsed)
+    // 写入数据库
+    const db = getDatabase()
+    const data = JSON.stringify(settings)
+    const now = Date.now()
+    db.insert(schema.settings)
+      .values({ id: 1, data, updatedAt: now })
+      .onConflictDoUpdate({ target: schema.settings.id, set: { data, updatedAt: now } })
+      .run()
+    console.log('[settings] 已从旧 JSON 文件迁移设置到数据库')
+    return settings
+  } catch {
+    return null
+  }
+}
+
+/**
+ * 读取设置：数据库无记录时尝试从旧 JSON 文件迁移，否则回退默认值。
  */
 export const loadSettings = async (): Promise<AppSettings> => {
   if (cache) {
     return cache
   }
   try {
-    const raw = await readFile(getFilePath(), 'utf-8')
-    cache = mergeWithDefaults(JSON.parse(raw))
+    const db = getDatabase()
+    const row = db.select().from(schema.settings).where(eq(schema.settings.id, 1)).get()
+    if (row) {
+      cache = mergeWithDefaults(JSON.parse(row.data))
+    } else {
+      // 尝试从旧 JSON 文件迁移
+      const migrated = await migrateFromJsonFile()
+      cache = migrated ?? DEFAULT_SETTINGS
+    }
   } catch {
     cache = DEFAULT_SETTINGS
   }
@@ -47,18 +76,28 @@ export const loadSettings = async (): Promise<AppSettings> => {
 }
 
 /**
- * 保存设置：先写临时文件再重命名，保证原子性；失败时返回 false 且保留内存副本。
+ * 保存设置：使用 INSERT OR REPLACE 写入单行；失败时返回 false 且保留内存副本。
  */
 export const saveSettings = async (next: AppSettings): Promise<boolean> => {
   cache = next
-  const target = getFilePath()
-  const tmp = `${target}.tmp`
   try {
-    await writeFile(tmp, JSON.stringify(next, null, 2), 'utf-8')
-    await rename(tmp, target)
+    const db = getDatabase()
+    const data = JSON.stringify(next)
+    const now = Date.now()
+    db.insert(schema.settings)
+      .values({ id: 1, data, updatedAt: now })
+      .onConflictDoUpdate({ target: schema.settings.id, set: { data, updatedAt: now } })
+      .run()
     return true
   } catch (error) {
-    console.error('Failed to persist settings:', error)
+    console.error('Failed to persist settings to database:', error)
     return false
   }
+}
+
+/**
+ * 清空内存缓存，下次读取时重新从数据库加载
+ */
+export const invalidateCache = (): void => {
+  cache = null
 }

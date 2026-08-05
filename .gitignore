@@ -4,3 +4,9 @@ out
 .DS_Store
 *.log*
 temp
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/

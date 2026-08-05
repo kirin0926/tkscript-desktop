@@ -3,6 +3,7 @@ productName: electron-react-app
 asar: true
 asarUnpack:
   - resources/**
+  - lib/main/db/migrations/**
 directories:
   buildResources: resources/build
 files:
