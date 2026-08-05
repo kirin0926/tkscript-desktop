@@ -10,3 +10,6 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+
+# TypeScript build info
+*.tsbuildinfo
