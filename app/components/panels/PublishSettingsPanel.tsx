@@ -41,7 +41,7 @@ export const PublishSettingsPanel = () => {
               min={0}
               value={publish.apiPort}
               onChange={(e) => update('publish', { apiPort: e.target.value })}
-              placeholder="50325"
+              placeholder="53200"
             />
           </Field>
         </FormSection>

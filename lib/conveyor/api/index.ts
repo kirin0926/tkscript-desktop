@@ -4,6 +4,7 @@ import { WindowApi } from './window-api'
 import { SettingsApi } from './settings-api'
 import { DialogApi } from './dialog-api'
 import { FingerprintApi } from './fingerprint-api'
+import { ScriptApi } from './script-api'
 
 export const conveyor = {
   app: new AppApi(electronAPI),
@@ -11,6 +12,7 @@ export const conveyor = {
   settings: new SettingsApi(electronAPI),
   dialog: new DialogApi(electronAPI),
   fingerprint: new FingerprintApi(electronAPI),
+  script: new ScriptApi(electronAPI),
 }
 
 export type ConveyorApi = typeof conveyor

@@ -109,7 +109,9 @@ export const menuItems: TitlebarMenu[] = [
         action: 'window-darkmode-toggle',
         shortcut: 'Toggle',
         actionCallback: () => {
-          document.documentElement.classList.toggle('dark')
+          const isDark = document.documentElement.classList.contains('dark')
+          document.documentElement.classList.toggle('dark', !isDark)
+          localStorage.setItem('theme', isDark ? 'light' : 'dark')
         },
       },
       {

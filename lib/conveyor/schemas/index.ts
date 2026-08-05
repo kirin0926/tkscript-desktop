@@ -4,6 +4,7 @@ import { appIpcSchema } from './app-schema'
 import { settingsIpcSchema } from './settings-schema'
 import { dialogIpcSchema } from './dialog-schema'
 import { fingerprintIpcSchema } from './fingerprint-schema'
+import { scriptIpcSchema } from './script-schema'
 
 // Define all IPC channel schemas in one place
 export const ipcSchemas = {
@@ -12,6 +13,7 @@ export const ipcSchemas = {
   ...settingsIpcSchema,
   ...dialogIpcSchema,
   ...fingerprintIpcSchema,
+  ...scriptIpcSchema,
 } as const
 
 // Extract types from Zod schemas
