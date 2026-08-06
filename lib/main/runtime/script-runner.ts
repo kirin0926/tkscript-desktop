@@ -59,6 +59,8 @@ const runThread = async (
   const adapter = getAdapter(conn)
 
   // 通过指纹浏览器打开窗口获取 CDP 调试端口
+  // 注意：如果窗口已在运行（status === 'running'），HubStudio/ixBrowser 的 openWindow
+  // 实现会复用已有窗口（不会重复打开），因此这里始终保持调用 openWindow 获取正确端口。
   let debugPort = 9333
   try {
     const result = await adapter.openWindow(conn, window.id)
@@ -78,6 +80,11 @@ const runThread = async (
   const rounds = parseInt(settings.publish.rounds, 10) || 1
   const uploadWait = parseInt(settings.publish.uploadWait, 10) || 30
 
+  // 合并该窗口的覆盖设置（窗口设置弹窗里配置的独立素材/作品/资料）
+  const override = settings.windowOverrides?.[window.id]
+  const material = { ...settings.material, ...(override?.material ?? {}) }
+  const works = { ...settings.works, ...(override?.works ?? {}) }
+
   return publish(
     {
       runId: ctx.runId,
@@ -85,10 +92,11 @@ const runThread = async (
       profileId: window.id,
       profileName: window.name,
       debugPort,
-      videoFolder: settings.material.videoFolder,
-      videoMode: settings.material.videoMode,
-      title: settings.works.title,
-      hashtags: settings.works.hashtags,
+      videoFolder: material.videoFolder,
+      videoMode: material.videoMode,
+      sentFileAction: material.sentFileAction,
+      title: works.title,
+      hashtags: works.hashtags,
       perAccount,
       rounds,
       uploadWait,

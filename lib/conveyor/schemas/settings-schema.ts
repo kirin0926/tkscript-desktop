@@ -28,6 +28,8 @@ export const materialSettingsSchema = z.object({
   videoFolder: z.string(),
   videoMode: z.enum(['sequential', 'random']),
   runMode: z.enum(['single', 'loop']),
+  /** 发布完成后对已发送视频文件的处理方式：keep=保留循环使用，mark=标记已发送，delete=删除文件 */
+  sentFileAction: z.enum(['keep', 'mark', 'delete']).default('keep'),
 })
 
 export const profileSettingsSchema = z.object({
@@ -89,6 +91,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     videoFolder: '',
     videoMode: 'sequential',
     runMode: 'single',
+    sentFileAction: 'keep',
   },
   profile: {
     avatarFolder: '',

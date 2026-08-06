@@ -200,6 +200,30 @@ const buildStatusMap = (statuses: HubContainerStatus[]): Map<string, number> => 
   return map
 }
 
+/**
+ * 从进程命令行中提取远程调试端口。
+ * HubStudio 启动 Chrome 时通常会传入 --remote-debugging-port=XXXX 参数。
+ */
+const getDebugPortFromPid = async (pid: string | undefined): Promise<number | null> => {
+  if (!pid) return null
+  try {
+    const { execSync } = require('child_process')
+    const command = process.platform === 'win32'
+      ? `wmic process where processid=${pid} get commandline`
+      : `ps -p ${pid} -o command=`
+    const output = execSync(command, { timeout: 3000, encoding: 'utf-8' })
+    // Chrome 调试端口参数格式: --remote-debugging-port=XXXX
+    const match = output.match(/--remote-debugging-port=(\d+)/)
+    if (match) {
+      const port = parseInt(match[1], 10)
+      if (!isNaN(port) && port > 0 && port < 65536) return port
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 // ---------------------------------------------------------------------------
 // 适配器实现
 // ---------------------------------------------------------------------------
@@ -256,6 +280,23 @@ export const hubstudioAdapter: FingerprintAdapter = {
 
   openWindow: async (conn, profileId) => {
     await ensureLoggedIn(conn)
+
+    // 先检查窗口是否已经在运行；如果是，则直接获取现有调试端口，不再打开新窗口
+    const statuses = await fetchAllStatus(conn)
+    const runningContainer = statuses.find(
+      (s) => String(s.containerCode) === String(profileId) && s.status === 0
+    )
+    if (runningContainer) {
+      console.log(`[HubStudio] 窗口 ${profileId} 已在运行，尝试获取现有调试端口`)
+      const existingPort = await getDebugPortFromPid(runningContainer.pid)
+      if (existingPort) {
+        console.log(`[HubStudio] 复用已运行窗口 ${profileId} 的调试端口: ${existingPort}`)
+        return { profileId, debugPort: existingPort }
+      }
+      // 如果无法从 PID 获取端口，尝试查找该端口是否已占用
+      console.log(`[HubStudio] 无法从 PID 获取端口，仍尝试打开新窗口（可能重复）`)
+    }
+
     const data = await apiRequest<HubStartResult>(conn, '/api/v1/browser/start', {
       containerCode: profileId,
     })

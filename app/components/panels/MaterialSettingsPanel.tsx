@@ -133,6 +133,24 @@ export const MaterialSettingsPanel = () => {
               </SelectContent>
             </Select>
           </Field>
+          <Field label="已发送文件处理" htmlFor="material-sent-file-action">
+            <Select
+              value={material.sentFileAction}
+              onValueChange={(value) => update('material', { sentFileAction: value as MaterialSettings['sentFileAction'] })}
+            >
+              <SelectTrigger id="material-sent-file-action" className="w-full">
+                <SelectValue placeholder="选择处理方式" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="keep">保留并循环使用</SelectItem>
+                <SelectItem value="mark">标记为已发送</SelectItem>
+                <SelectItem value="delete">发布后删除文件</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="mt-1 text-xs text-muted-foreground">
+              标记为已发送后，文件中会生成 .sent-files.json 记录
+            </p>
+          </Field>
         </FormSection>
       </div>
     </PanelShell>

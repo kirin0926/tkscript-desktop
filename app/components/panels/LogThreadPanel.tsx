@@ -1,6 +1,5 @@
-import { useEffect, useMemo } from 'react'
+import { useMemo } from 'react'
 import { Inbox } from 'lucide-react'
-import { useConveyor } from '@/app/hooks/use-conveyor'
 import { useScriptRunStore, type ThreadState, type LogItem } from '@/app/stores/script-run-store'
 import { Badge } from '@/app/components/ui/badge'
 import { ScrollArea } from '@/app/components/ui/scroll-area'
@@ -38,19 +37,10 @@ const formatTs = (ts: number): string => {
 }
 
 export const LogThreadPanel = () => {
-  const scriptApi = useConveyor('script')
   const threads = useScriptRunStore((s) => s.threads)
   const logs = useScriptRunStore((s) => s.logs)
   const selectedThreadId = useScriptRunStore((s) => s.selectedThreadId)
   const setSelection = useScriptRunStore((s) => s.setSelection)
-
-  // 订阅主进程 script-event 流
-  useEffect(() => {
-    const unsubscribe = scriptApi.onEvent((event) => {
-      useScriptRunStore.getState().ingest(event)
-    })
-    return unsubscribe
-  }, [scriptApi])
 
   const threadList = useMemo(() => Array.from(threads.values()).sort((a, b) => a.threadId.localeCompare(b.threadId)), [threads])
 
