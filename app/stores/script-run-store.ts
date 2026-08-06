@@ -22,6 +22,7 @@ export interface LogItem {
 interface ScriptRunState {
   runId: string | null
   running: boolean
+  paused: boolean
   totalThreads: number
   failedThreads: number
   threads: Map<string, ThreadState>
@@ -35,6 +36,7 @@ interface ScriptRunState {
 const DEFAULTS = {
   runId: null,
   running: false,
+  paused: false,
   totalThreads: 0,
   failedThreads: 0,
   threads: new Map<string, ThreadState>(),
@@ -59,8 +61,15 @@ export const useScriptRunStore = create<ScriptRunState>((set) => ({
         return {
           ...state,
           running: false,
+          paused: false,
           failedThreads: event.type === 'run-finished' ? event.failedThreads : state.failedThreads,
         }
+      }
+      if (event.type === 'run-paused') {
+        return { ...state, paused: true }
+      }
+      if (event.type === 'run-resumed') {
+        return { ...state, paused: false }
       }
       if (event.type === 'thread-started') {
         const next = new Map(state.threads)

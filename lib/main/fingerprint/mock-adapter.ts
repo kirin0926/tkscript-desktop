@@ -17,6 +17,7 @@ const MOCK_GROUPS: FpGroup[] = [
 let mockDebugPort = 9333
 
 export const mockAdapter: FingerprintAdapter = {
+  testConnection: () => Promise.resolve({ ok: true, message: 'Mock 连接成功' }),
   listWindows: () => Promise.resolve(MOCK_WINDOWS),
   listGroups: () => Promise.resolve(MOCK_GROUPS),
   openWindow: (_conn, profileId) => {
@@ -25,4 +26,5 @@ export const mockAdapter: FingerprintAdapter = {
     return Promise.resolve(result)
   },
   closeWindow: () => Promise.resolve(true),
+  getOpenedWindows: () => Promise.resolve(MOCK_WINDOWS.filter((w) => w.status === 'running')),
 }

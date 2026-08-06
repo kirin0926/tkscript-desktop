@@ -9,15 +9,30 @@ export const WorksSettingsPanel = () => {
   const works = settings.works
 
   return (
-    <PanelShell title="作品设置" description="配置作品标题、定时发布与挂车商品">
+    <PanelShell title="作品设置" description="配置 TikTok 视频标题、标签与定时发布">
       <div className="space-y-8">
-        <FormSection title="标题">
-          <Field label="统一标题名" htmlFor="works-title" className="sm:col-span-2" hint="所有作品将使用同一标题">
+        <FormSection title="标题与标签">
+          <Field label="视频标题" htmlFor="works-title" className="sm:col-span-2" hint="所有视频将使用同一标题">
             <Input
               id="works-title"
               value={works.title}
               onChange={(e) => update('works', { title: e.target.value })}
-              placeholder="请输入统一标题"
+              placeholder="请输入视频标题"
+            />
+          </Field>
+          {works.title && (
+            <Field label="预览" className="sm:col-span-2">
+              <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                {works.title}
+              </div>
+            </Field>
+          )}
+          <Field label="话题标签" htmlFor="works-hashtags" className="sm:col-span-2" hint="多个标签用空格分隔，如 #fyp #viral">
+            <Input
+              id="works-hashtags"
+              value={works.hashtags}
+              onChange={(e) => update('works', { hashtags: e.target.value })}
+              placeholder="#fyp #viral #trending"
             />
           </Field>
         </FormSection>
@@ -26,7 +41,7 @@ export const WorksSettingsPanel = () => {
           <div className="flex items-center justify-between rounded-md border border-border p-3 sm:col-span-2">
             <div className="space-y-0.5">
               <Label htmlFor="works-scheduled">启用定时发布</Label>
-              <p className="text-xs text-muted-foreground">按设定的时间条数分批发布作品</p>
+              <p className="text-xs text-muted-foreground">按设定的时间间隔分批发布视频</p>
             </div>
             <Switch
               id="works-scheduled"
@@ -42,29 +57,6 @@ export const WorksSettingsPanel = () => {
               value={works.scheduleCount}
               onChange={(e) => update('works', { scheduleCount: e.target.value })}
               disabled={!works.scheduled}
-            />
-          </Field>
-        </FormSection>
-
-        <FormSection title="挂车商品">
-          <div className="flex items-center justify-between rounded-md border border-border p-3 sm:col-span-2">
-            <div className="space-y-0.5">
-              <Label htmlFor="works-cart">启用挂车商品 ID</Label>
-              <p className="text-xs text-muted-foreground">发布时关联指定商品 ID</p>
-            </div>
-            <Switch
-              id="works-cart"
-              checked={works.cartEnabled}
-              onCheckedChange={(checked) => update('works', { cartEnabled: checked })}
-            />
-          </div>
-          <Field label="挂车商品 ID" htmlFor="works-cart-id" className="sm:col-span-2">
-            <Input
-              id="works-cart-id"
-              value={works.cartProductId}
-              onChange={(e) => update('works', { cartProductId: e.target.value })}
-              disabled={!works.cartEnabled}
-              placeholder="请输入挂车商品 ID"
             />
           </Field>
         </FormSection>

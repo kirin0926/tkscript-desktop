@@ -15,6 +15,7 @@ interface RunContext {
 }
 
 const runs = new Map<string, RunContext>()
+const pauseFlags = new Map<string, { paused: boolean; resolve: (() => void) | null }>()
 
 // ---------------------------------------------------------------------------
 // 窗口序列解析
@@ -87,6 +88,7 @@ const runThread = async (
       videoFolder: settings.material.videoFolder,
       videoMode: settings.material.videoMode,
       title: settings.works.title,
+      hashtags: settings.works.hashtags,
       perAccount,
       rounds,
       uploadWait,
@@ -160,7 +162,22 @@ export const startScript = async (
   let active = 0
 
   await new Promise<void>((resolveRun) => {
+    const waitIfPaused = async (): Promise<void> => {
+      const flag = pauseFlags.get(runId)
+      if (flag?.paused) {
+        return new Promise<void>((resolve) => {
+          flag.resolve = resolve
+        })
+      }
+    }
+
     const next = async () => {
+      if (abortController.signal.aborted) {
+        if (active === 0) resolveRun()
+        return
+      }
+      // 等待暂停恢复
+      await waitIfPaused()
       if (abortController.signal.aborted) {
         if (active === 0) resolveRun()
         return
@@ -183,6 +200,10 @@ export const startScript = async (
     }
   })
 
+  // 清理
+  pauseFlags.delete(runId)
+  runs.delete(runId)
+
   if (abortController.signal.aborted) {
     emit({ type: 'run-aborted', runId, reason: '用户停止' })
   } else {
@@ -193,7 +214,6 @@ export const startScript = async (
       failedThreads: failedCount,
     })
   }
-  runs.delete(runId)
   return { runId }
 }
 
@@ -204,7 +224,46 @@ export const startScript = async (
 export const stopScript = async (runId: string): Promise<boolean> => {
   const ctx = runs.get(runId)
   if (!ctx) return false
+  const flag = pauseFlags.get(runId)
+  if (flag?.resolve) {
+    flag.resolve()
+    flag.resolve = null
+  }
   ctx.abortController.abort()
+  return true
+}
+
+// ---------------------------------------------------------------------------
+// 暂停 / 恢复
+// ---------------------------------------------------------------------------
+
+export const pauseScript = (runId: string): boolean => {
+  if (!runs.has(runId)) return false
+  const flag = pauseFlags.get(runId)
+  if (flag) {
+    flag.paused = true
+  } else {
+    pauseFlags.set(runId, { paused: true, resolve: null })
+  }
+  const ctx = runs.get(runId)
+  if (ctx) {
+    ctx.emit({ type: 'run-paused', runId })
+  }
+  return true
+}
+
+export const resumeScript = (runId: string): boolean => {
+  const flag = pauseFlags.get(runId)
+  if (!flag || !flag.paused) return false
+  flag.paused = false
+  if (flag.resolve) {
+    flag.resolve()
+    flag.resolve = null
+  }
+  const ctx = runs.get(runId)
+  if (ctx) {
+    ctx.emit({ type: 'run-resumed', runId })
+  }
   return true
 }
 
@@ -214,4 +273,5 @@ export const cleanupAllRuns = (): void => {
     ctx.abortController.abort()
   }
   runs.clear()
+  pauseFlags.clear()
 }

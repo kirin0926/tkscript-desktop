@@ -60,6 +60,14 @@ export const scriptEventSchema = z.discriminatedUnion('type', [
     runId: z.string(),
     reason: z.string(),
   }),
+  z.object({
+    type: z.literal('run-paused'),
+    runId: z.string(),
+  }),
+  z.object({
+    type: z.literal('run-resumed'),
+    runId: z.string(),
+  }),
 ])
 
 export type ScriptEvent = z.infer<typeof scriptEventSchema>
@@ -72,6 +80,14 @@ export const scriptIpcSchema = {
     return: scriptStartReturnSchema,
   },
   'script-stop': {
+    args: z.tuple([scriptStopArgsSchema]),
+    return: z.boolean(),
+  },
+  'script-pause': {
+    args: z.tuple([scriptStopArgsSchema]),
+    return: z.boolean(),
+  },
+  'script-resume': {
     args: z.tuple([scriptStopArgsSchema]),
     return: z.boolean(),
   },

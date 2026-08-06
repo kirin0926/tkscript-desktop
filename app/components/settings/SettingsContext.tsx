@@ -1,11 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { useConveyor } from '@/app/hooks/use-conveyor'
-import { DEFAULT_SETTINGS, type AppSettings } from '@/lib/conveyor/schemas/settings-schema'
+import { DEFAULT_SETTINGS, type AppSettings, type OverridableSection } from '@/lib/conveyor/schemas/settings-schema'
 
 interface SettingsContextValue {
   settings: AppSettings
   loading: boolean
   update: <K extends keyof AppSettings>(section: K, patch: Partial<AppSettings[K]>) => void
+  updateWindowOverride: (windowId: string, section: OverridableSection, patch: Record<string, unknown>) => void
+  clearWindowOverride: (windowId: string, section?: OverridableSection) => void
 }
 
 const SettingsContext = createContext<SettingsContextValue | undefined>(undefined)
@@ -70,6 +72,63 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     [scheduleSave]
   )
 
+  const updateWindowOverride = useCallback<SettingsContextValue['updateWindowOverride']>(
+    (windowId, section, patch) => {
+      setSettings((prev) => {
+        const overrides = prev.windowOverrides ?? {}
+        const existing = overrides[windowId] ?? {}
+        const next = {
+          ...prev,
+          windowOverrides: {
+            ...overrides,
+            [windowId]: {
+              ...existing,
+              [section]: { ...(existing[section] as Record<string, unknown> | undefined), ...patch },
+            },
+          },
+        }
+        settingsRef.current = next
+        return next
+      })
+      scheduleSave()
+    },
+    [scheduleSave, setSettings]
+  )
+
+  const clearWindowOverride = useCallback<SettingsContextValue['clearWindowOverride']>(
+    (windowId, section) => {
+      setSettings((prev) => {
+        const overrides = prev.windowOverrides ?? {}
+        if (section) {
+          // 清除窗口下某个设置分类的覆盖
+          const existing = overrides[windowId]
+          if (!existing) return prev
+          const rest = Object.fromEntries(
+            Object.entries(existing).filter(([k]) => k !== section)
+          )
+          if (Object.keys(rest).length === 0) {
+            // 该窗口再无任何覆盖，移除此条目
+            const { [windowId]: _removed, ...remaining } = overrides
+            const next = { ...prev, windowOverrides: remaining }
+            settingsRef.current = next
+            return next
+          }
+          const next = { ...prev, windowOverrides: { ...overrides, [windowId]: rest } }
+          settingsRef.current = next
+          return next
+        } else {
+          // 清除该窗口所有覆盖
+          const { [windowId]: _removed, ...rest } = overrides
+          const next = { ...prev, windowOverrides: rest }
+          settingsRef.current = next
+          return next
+        }
+      })
+      scheduleSave()
+    },
+    [scheduleSave, setSettings]
+  )
+
   // 卸载时若有未落盘的变更，立即保存。
   useEffect(() => {
     return () => {
@@ -82,7 +141,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [settingsApi])
 
-  return <SettingsContext.Provider value={{ settings, loading, update }}>{children}</SettingsContext.Provider>
+  return <SettingsContext.Provider value={{ settings, loading, update, updateWindowOverride, clearWindowOverride }}>{children}</SettingsContext.Provider>
 }
 
 export const useSettings = () => {

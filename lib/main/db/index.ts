@@ -22,9 +22,9 @@ const getDbPath = (): string => {
  */
 const getMigrationsPath = (): string => {
   if (!app.isPackaged) {
-    return resolve(__dirname, '..', '..', '..', 'lib', 'main', 'db', 'migrations')
+    return resolve(__dirname, 'migrations')
   }
-  return join(process.resourcesPath, 'lib', 'main', 'db', 'migrations')
+  return join(process.resourcesPath, 'migrations')
 }
 
 /**

@@ -9,6 +9,10 @@ export class ScriptApi extends ConveyorApi {
 
   stop = (runId: string): Promise<boolean> => this.invoke('script-stop', { runId })
 
+  pause = (runId: string): Promise<boolean> => this.invoke('script-pause', { runId })
+
+  resume = (runId: string): Promise<boolean> => this.invoke('script-resume', { runId })
+
   onEvent = (listener: EventListener): (() => void) => {
     const handler = (_event: unknown, payload: ScriptEvent): void => {
       listener(payload)

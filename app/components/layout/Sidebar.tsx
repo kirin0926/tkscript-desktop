@@ -1,10 +1,6 @@
-import { Moon, Play, Square, Sun } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
-import { toast } from 'sonner'
-import { useConveyor } from '@/app/hooks/use-conveyor'
-import { useSettings } from '@/app/components/settings/SettingsContext'
 import { useScriptRunStore } from '@/app/stores/script-run-store'
-import { Button } from '@/app/components/ui/button'
 import { cn } from '@/lib/utils'
 import { navItems, type PanelKey } from './nav-items'
 
@@ -14,38 +10,10 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ activeKey, onSelect }: SidebarProps) => {
-  const scriptApi = useConveyor('script')
-  const { settings } = useSettings()
   const running = useScriptRunStore((s) => s.running)
   const { theme, setTheme } = useTheme()
 
   const toggleTheme = () => setTheme(theme === 'dark' ? 'light' : 'dark')
-
-  const handleStart = () => {
-    scriptApi
-      .start(settings)
-      .then(() => {
-        toast.success('已开始发布任务')
-      })
-      .catch((err) => {
-        console.error('启动发布失败:', err)
-        toast.error('启动发布失败', { description: err instanceof Error ? err.message : String(err) })
-      })
-    onSelect('logs')
-  }
-
-  const handleStop = () => {
-    const runId = useScriptRunStore.getState().runId
-    if (runId) {
-      scriptApi
-        .stop(runId)
-        .then(() => toast.message('已请求停止'))
-        .catch((err) => {
-          console.error('停止发布失败:', err)
-          toast.error('停止发布失败', { description: err instanceof Error ? err.message : String(err) })
-        })
-    }
-  }
 
   return (
     <aside className="flex h-full w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -92,16 +60,6 @@ export const Sidebar = ({ activeKey, onSelect }: SidebarProps) => {
           />
           <span>{running ? '发布中' : '空闲'}</span>
         </div>
-        <Button
-          type="button"
-          variant={running ? 'destructive' : 'default'}
-          size="sm"
-          className="w-full"
-          onClick={running ? handleStop : handleStart}
-        >
-          {running ? <Square /> : <Play />}
-          {running ? '停止发布' : '开始发布'}
-        </Button>
       </div>
     </aside>
   )

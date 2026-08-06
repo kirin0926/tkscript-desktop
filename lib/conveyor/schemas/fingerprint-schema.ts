@@ -22,12 +22,22 @@ export const fpOpenWindowReturnSchema = z.object({
   debugPort: z.number(),
 })
 
+export const fpConnectionTestResultSchema = z.object({
+  ok: z.boolean(),
+  message: z.string(),
+})
+
 export type FpWindow = z.infer<typeof fpWindowSchema>
 export type FpGroup = z.infer<typeof fpGroupSchema>
 export type FpConn = z.infer<typeof fpConnSchema>
 export type FpOpenWindowReturn = z.infer<typeof fpOpenWindowReturnSchema>
+export type FpConnectionTestResult = z.infer<typeof fpConnectionTestResultSchema>
 
 export const fingerprintIpcSchema = {
+  'fingerprint-test-connection': {
+    args: z.tuple([fpConnSchema]),
+    return: fpConnectionTestResultSchema,
+  },
   'fingerprint-list-windows': {
     args: z.tuple([fpConnSchema]),
     return: z.array(fpWindowSchema),
@@ -43,5 +53,9 @@ export const fingerprintIpcSchema = {
   'fingerprint-close-window': {
     args: z.tuple([fpConnSchema, z.string()]),
     return: z.boolean(),
+  },
+  'fingerprint-get-opened-windows': {
+    args: z.tuple([fpConnSchema]),
+    return: z.array(fpWindowSchema),
   },
 }

@@ -14,6 +14,12 @@ export const Titlebar = () => {
   const { title, icon, titleCentered, menuItems } = useWindowContext().titlebar
   const { menusVisible, setMenusVisible, closeActiveMenu } = useTitlebarContext()
   const { window: wcontext } = useWindowContext()
+  const { windowMaximizeToggle } = useConveyor('window')
+
+  const handleDoubleClick = (e: React.MouseEvent): void => {
+    e.preventDefault()
+    windowMaximizeToggle()
+  }
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -28,7 +34,10 @@ export const Titlebar = () => {
   }, [menusVisible, closeActiveMenu, setMenusVisible, menuItems])
 
   return (
-    <div className={`window-titlebar ${wcontext?.platform ? `platform-${wcontext.platform}` : ''}`}>
+    <div
+      className={`window-titlebar ${wcontext?.platform ? `platform-${wcontext.platform}` : ''}`}
+      onDoubleClick={handleDoubleClick}
+    >
       {wcontext?.platform !== 'darwin' && (
         <div className="window-titlebar-icon">
           <img src={icon} />

@@ -13,10 +13,9 @@ export const publishSettingsSchema = z.object({
 
 export const worksSettingsSchema = z.object({
   title: z.string(),
+  hashtags: z.string(),
   scheduled: z.boolean(),
   scheduleCount: z.string(),
-  cartEnabled: z.boolean(),
-  cartProductId: z.string(),
 })
 
 export const materialSettingsSchema = z.object({
@@ -30,18 +29,29 @@ export const profileSettingsSchema = z.object({
   signature: z.string(),
 })
 
+/** 单个窗口的覆盖设置（与全局设置合并使用） */
+export const windowOverrideSchema = z.object({
+  profile: profileSettingsSchema.partial().optional(),
+  material: materialSettingsSchema.partial().optional(),
+  works: worksSettingsSchema.partial().optional(),
+})
+
 export const appSettingsSchema = z.object({
   publish: publishSettingsSchema,
   works: worksSettingsSchema,
   material: materialSettingsSchema,
   profile: profileSettingsSchema,
+  windowOverrides: z.record(z.string(), windowOverrideSchema).default({}),
 })
 
 export type PublishSettings = z.infer<typeof publishSettingsSchema>
 export type WorksSettings = z.infer<typeof worksSettingsSchema>
 export type MaterialSettings = z.infer<typeof materialSettingsSchema>
 export type ProfileSettings = z.infer<typeof profileSettingsSchema>
+export type WindowOverride = z.infer<typeof windowOverrideSchema>
 export type AppSettings = z.infer<typeof appSettingsSchema>
+
+export type OverridableSection = 'profile' | 'material' | 'works'
 
 /**
  * 默认设置，需与各面板初始值保持一致。
@@ -60,10 +70,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   works: {
     title: '',
+    hashtags: '',
     scheduled: false,
     scheduleCount: '1',
-    cartEnabled: false,
-    cartProductId: '',
   },
   material: {
     videoFolder: '',
@@ -74,6 +83,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     avatarFolder: '',
     signature: '',
   },
+  windowOverrides: {},
 }
 
 export const settingsIpcSchema = {
