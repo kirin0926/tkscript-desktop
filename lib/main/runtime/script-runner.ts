@@ -79,13 +79,24 @@ const runThread = async (
   const perAccount = parseInt(settings.publish.perAccount, 10) || 1
   const rounds = parseInt(settings.publish.rounds, 10) || 1
   const uploadWait = parseInt(settings.publish.uploadWait, 10) || 30
+  const detectWait = parseInt(settings.publish.detectWait, 10) || 30
+  const closeAfterPublish = settings.publish.closeAfterPublish ?? false
+
+  emit({
+    type: 'log',
+    runId: ctx.runId,
+    threadId,
+    level: 'info',
+    message: `窗口 ${window.name} 开始发布任务，closeAfterPublish=${closeAfterPublish}（${typeof settings.publish.closeAfterPublish}）`,
+    ts: Date.now(),
+  })
 
   // 合并该窗口的覆盖设置（窗口设置弹窗里配置的独立素材/作品/资料）
   const override = settings.windowOverrides?.[window.id]
   const material = { ...settings.material, ...(override?.material ?? {}) }
   const works = { ...settings.works, ...(override?.works ?? {}) }
 
-  return publish(
+  const result = await publish(
     {
       runId: ctx.runId,
       threadId,
@@ -100,11 +111,66 @@ const runThread = async (
       perAccount,
       rounds,
       uploadWait,
+      detectWait,
       totalTasks,
       signal: ctx.abortController.signal,
     },
     emit
   )
+
+  // 发布完成后关闭窗口环境
+  if (closeAfterPublish) {
+    emit({
+      type: 'log',
+      runId: ctx.runId,
+      threadId,
+      level: 'info',
+      message: `发布任务完成，关闭窗口环境: ${window.name}`,
+      ts: Date.now(),
+    })
+    try {
+      const closed = await adapter.closeWindow(conn, window.id)
+      if (closed) {
+        emit({
+          type: 'log',
+          runId: ctx.runId,
+          threadId,
+          level: 'info',
+          message: `窗口已关闭: ${window.name}`,
+          ts: Date.now(),
+        })
+      } else {
+        emit({
+          type: 'log',
+          runId: ctx.runId,
+          threadId,
+          level: 'warn',
+          message: `关闭窗口失败: ${window.name}`,
+          ts: Date.now(),
+        })
+      }
+    } catch (err) {
+      emit({
+        type: 'log',
+        runId: ctx.runId,
+        threadId,
+        level: 'warn',
+        message: `关闭窗口异常: ${err instanceof Error ? err.message : String(err)}`,
+        ts: Date.now(),
+      })
+    }
+  } else {
+    emit({
+      type: 'log',
+      runId: ctx.runId,
+      threadId,
+      level: 'info',
+      message: `发布任务完成，closeAfterPublish=${closeAfterPublish}，不关闭窗口`,
+      ts: Date.now(),
+    })
+  }
+
+  return result
 }
 
 // ---------------------------------------------------------------------------

@@ -20,6 +20,8 @@ export interface PublishParams {
   perAccount: number
   rounds: number
   uploadWait: number
+  /** 上传完成后等待版权检测的时间（秒） */
+  detectWait: number
   totalTasks: number
   signal: AbortSignal
   /** 发布后对视频文件的处理方式 */
@@ -150,6 +152,27 @@ const checkLoginStatus = async (page: Page): Promise<boolean> => {
 // ---------------------------------------------------------------------------
 // TikTok 上传辅助函数
 // ---------------------------------------------------------------------------
+
+/**
+ * 等待上传完成标签出现。
+ * TikTok 上传完成后会在视频名旁边显示 "Uploaded（xxxMB）" 标签，
+ * 只有出现该标签才表示文件已真正上传到服务器。
+ */
+const waitForUploaded = async (page: Page, timeoutSec: number): Promise<boolean> => {
+  try {
+    await page.waitForFunction(
+      () => {
+        const text = document.body?.textContent ?? ''
+        // 匹配 "Uploaded" 上传完成标签
+        return /\bUploaded\b/i.test(text)
+      },
+      { timeout: timeoutSec * 1000 }
+    )
+    return true
+  } catch {
+    return false
+  }
+}
 
 /**
  * 等待视频上传完成（Post 按钮变为可用）
@@ -331,7 +354,8 @@ const uploadVideo = async (page: Page, videoPath: string): Promise<boolean> => {
 }
 
 /**
- * 填写标题/描述
+ * 填写或清空标题/描述。
+ * 先清空输入框，再填入内容（如果 title 不为空）。
  */
 const fillCaption = async (page: Page, title: string): Promise<boolean> => {
   try {
@@ -350,7 +374,11 @@ const fillCaption = async (page: Page, title: string): Promise<boolean> => {
       if ((await selector.count()) > 0) {
         const el = selector.first()
         await el.click()
-        await el.fill(title)
+        // 先清空，再填入内容（如果为空则相当于清空）
+        await el.fill('')
+        if (title) {
+          await el.fill(title)
+        }
         return true
       }
     }
@@ -498,7 +526,7 @@ const openUploadPage = async (page: Page): Promise<boolean> => {
 }
 
 export const publish = async (params: PublishParams, emit: EventEmitter): Promise<boolean> => {
-  const { runId, threadId, profileId, profileName, debugPort, videoFolder, videoMode, title, hashtags, totalTasks, uploadWait, signal, sentFileAction } = params
+  const { runId, threadId, profileId, profileName, debugPort, videoFolder, videoMode, title, hashtags, totalTasks, uploadWait, detectWait, signal, sentFileAction } = params
 
   const log = (level: ScriptLogLevel, message: string) => {
     emit({ type: 'log', runId, threadId, level, message, ts: Date.now() })
@@ -585,6 +613,16 @@ export const publish = async (params: PublishParams, emit: EventEmitter): Promis
       log('info', '视频已选择，等待上传处理')
 
       // ---- 步骤 3 ----
+      step('等待上传完成', i, totalTasks)
+      log('info', '等待上传完成标签（Uploaded）…')
+      const uploadDone = await waitForUploaded(page, uploadWait)
+      if (!uploadDone) {
+        log('warn', '未检测到 Uploaded 上传完成标签，继续等待视频处理')
+      } else {
+        log('info', '检测到 Uploaded 上传完成标签，文件已上传完成')
+      }
+
+      // ---- 步骤 4 ----
       step('等待视频处理', i, totalTasks)
       log('info', '等待视频处理完成…')
       const processed = await waitForUpload(page, uploadWait)
@@ -594,19 +632,27 @@ export const publish = async (params: PublishParams, emit: EventEmitter): Promis
       // 视频处理完成后可能有弹窗（版权提示、定时发布等），尝试关闭
       await dismissDialogs(page)
 
-      // ---- 步骤 4 ----
+      // ---- 步骤 5 ----
+      step('等待版权检测', i, totalTasks)
+      log('info', `等待版权检测完成（${detectWait} 秒）…`)
+      if (detectWait > 0) {
+        await sleep(detectWait * 1000)
+        // 等待期间可能有弹窗出现，再次尝试关闭
+        await dismissDialogs(page)
+      }
+      log('info', '版权检测等待完成')
+
+      // ---- 步骤 6 ----
       step('填写描述', i, totalTasks)
       const caption = [title, hashtags].filter(Boolean).join('\n')
-      if (caption) {
-        const filled = await fillCaption(page, caption)
-        if (filled) {
-          log('info', `已填写描述: ${caption}`)
-        } else {
-          log('warn', '未找到描述输入框，跳过填写描述')
-        }
+      const filled = await fillCaption(page, caption)
+      if (filled) {
+        log('info', caption ? `已填写描述: ${caption}` : '已清空描述输入框')
+      } else {
+        log('warn', '未找到描述输入框，跳过填写描述')
       }
 
-      // ---- 步骤 5 ----
+      // ---- 步骤 7 ----
       step('点击发布', i, totalTasks)
 
       // 发布前先关闭可能残留的弹窗

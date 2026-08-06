@@ -22,6 +22,10 @@ const mergeWithDefaults = (raw: unknown): AppSettings => {
     works: { ...DEFAULT_SETTINGS.works, ...pick('works') },
     material: { ...DEFAULT_SETTINGS.material, ...pick('material') },
     profile: { ...DEFAULT_SETTINGS.profile, ...pick('profile') },
+    windowOverrides: {
+      ...DEFAULT_SETTINGS.windowOverrides,
+      ...(source.windowOverrides as Record<string, unknown> | undefined),
+    },
   }
 
   const parsed = appSettingsSchema.safeParse(merged)

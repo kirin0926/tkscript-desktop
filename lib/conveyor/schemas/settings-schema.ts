@@ -15,6 +15,10 @@ export const publishSettingsSchema = z.object({
   perAccount: z.string(),
   rounds: z.string(),
   uploadWait: z.string(),
+  /** 上传完成后等待版权检测的时间（秒） */
+  detectWait: z.string(),
+  /** 发布完成后关闭当前窗口环境 */
+  closeAfterPublish: z.boolean().default(false),
 })
 
 export const worksSettingsSchema = z.object({
@@ -80,6 +84,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
     perAccount: '1',
     rounds: '1',
     uploadWait: '30',
+    detectWait: '30',
+    closeAfterPublish: false,
   },
   works: {
     title: '',

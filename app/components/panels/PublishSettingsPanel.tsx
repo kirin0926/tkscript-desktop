@@ -4,6 +4,8 @@ import { useConveyor } from '@/app/hooks/use-conveyor'
 import { useScriptRunStore } from '@/app/stores/script-run-store'
 import { Input } from '@/app/components/ui/input'
 import { Button } from '@/app/components/ui/button'
+import { Label } from '@/app/components/ui/label'
+import { Switch } from '@/app/components/ui/switch'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select'
 import { Badge } from '@/app/components/ui/badge'
 import type { FpGroup } from '@/lib/conveyor/schemas/fingerprint-schema'
@@ -267,7 +269,7 @@ export const PublishSettingsPanel = () => {
               onChange={(e) => update('publish', { rounds: e.target.value })}
             />
           </Field>
-          <Field label="上传等待时间（秒）" htmlFor="publish-upload-wait">
+          <Field label="上传等待时间（秒）" htmlFor="publish-upload-wait" hint="视频上传后等待处理完成的最长时间">
             <Input
               id="publish-upload-wait"
               type="number"
@@ -276,6 +278,26 @@ export const PublishSettingsPanel = () => {
               onChange={(e) => update('publish', { uploadWait: e.target.value })}
             />
           </Field>
+          <Field label="版权检测等待时间（秒）" htmlFor="publish-detect-wait" hint="上传完成后等待 TikTok 版权/内容检测的时间">
+            <Input
+              id="publish-detect-wait"
+              type="number"
+              min={0}
+              value={publish.detectWait}
+              onChange={(e) => update('publish', { detectWait: e.target.value })}
+            />
+          </Field>
+          <div className="flex items-center justify-between rounded-md border border-border p-3 sm:col-span-2">
+            <div className="space-y-0.5">
+              <Label htmlFor="publish-close-after">发布完成后关闭窗口</Label>
+              <p className="text-xs text-muted-foreground">当前账号所有作品发布完成后关闭该窗口环境</p>
+            </div>
+            <Switch
+              id="publish-close-after"
+              checked={publish.closeAfterPublish}
+              onCheckedChange={(checked) => update('publish', { closeAfterPublish: checked })}
+            />
+          </div>
         </FormSection>
       </div>
     </PanelShell>
