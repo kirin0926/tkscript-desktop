@@ -25,20 +25,20 @@ export const PublishSettingsPanel = () => {
   const [connStatus, setConnStatus] = useState<{ ok: boolean; message: string } | null>(null)
   const [publishing, setPublishing] = useState(false)
   // 以 ref 持有最新连接参数，避免在编辑地址/端口时每次按键都重新拉取分组。
-  const connRef = useRef({ apiHost: publish.apiHost, apiPort: publish.apiPort })
-  connRef.current = { apiHost: publish.apiHost, apiPort: publish.apiPort }
+  const connRef = useRef({ apiHost: publish.apiHost, apiPort: publish.apiPort, apiKey: publish.apiKey, fingerprintType: publish.fingerprintType, appId: publish.appId, appSecret: publish.appSecret, groupCode: publish.groupCode })
+  connRef.current = { apiHost: publish.apiHost, apiPort: publish.apiPort, apiKey: publish.apiKey, fingerprintType: publish.fingerprintType, appId: publish.appId, appSecret: publish.appSecret, groupCode: publish.groupCode }
 
   useEffect(() => {
     listGroups(connRef.current)
       .then(setGroups)
       .catch(() => setGroups([]))
-  }, [listGroups])
+  }, [listGroups, publish.fingerprintType])
 
   const handleTestConnection = async () => {
     setTesting(true)
     setConnStatus(null)
     try {
-      const result = await testConnection({ apiHost: publish.apiHost, apiPort: publish.apiPort })
+      const result = await testConnection({ apiHost: publish.apiHost, apiPort: publish.apiPort, apiKey: publish.apiKey, fingerprintType: publish.fingerprintType, appId: publish.appId, appSecret: publish.appSecret, groupCode: publish.groupCode })
       setConnStatus(result)
     } catch (err) {
       setConnStatus({
@@ -83,6 +83,8 @@ export const PublishSettingsPanel = () => {
 
   const runStatusVariant = running ? 'secondary' : failedThreads > 0 ? 'destructive' : 'default'
 
+  const isHubStudio = publish.fingerprintType === 'hubstudio'
+
   return (
     <PanelShell
       title="发布设置"
@@ -113,6 +115,20 @@ export const PublishSettingsPanel = () => {
     >
       <div className="space-y-8">
         <FormSection title="指纹浏览器">
+          <Field label="浏览器类型" htmlFor="publish-fingerprint-type" className="sm:col-span-2">
+            <Select
+              value={publish.fingerprintType}
+              onValueChange={(value: 'ixbrowser' | 'hubstudio') => update('publish', { fingerprintType: value })}
+            >
+              <SelectTrigger id="publish-fingerprint-type" className="w-full">
+                <SelectValue placeholder="选择指纹浏览器" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ixbrowser">ixBrowser</SelectItem>
+                <SelectItem value="hubstudio">HubStudio</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
           <Field label="API 地址" htmlFor="publish-api-host" className="sm:col-span-2">
             <Input
               id="publish-api-host"
@@ -128,9 +144,47 @@ export const PublishSettingsPanel = () => {
               min={0}
               value={publish.apiPort}
               onChange={(e) => update('publish', { apiPort: e.target.value })}
-              placeholder="53200"
+              placeholder={isHubStudio ? '6873' : '53200'}
             />
           </Field>
+          {isHubStudio && (
+            <>
+              <Field label="App ID" htmlFor="publish-app-id" className="sm:col-span-2">
+                <Input
+                  id="publish-app-id"
+                  value={publish.appId ?? ''}
+                  onChange={(e) => update('publish', { appId: e.target.value })}
+                  placeholder="用户凭证 appId"
+                />
+              </Field>
+              <Field label="App Secret" htmlFor="publish-app-secret" className="sm:col-span-2">
+                <Input
+                  id="publish-app-secret"
+                  type="password"
+                  value={publish.appSecret ?? ''}
+                  onChange={(e) => update('publish', { appSecret: e.target.value })}
+                  placeholder="用户凭证 appSecret"
+                />
+              </Field>
+              <Field label="团队 ID" htmlFor="publish-group-code" className="sm:col-span-2">
+                <Input
+                  id="publish-group-code"
+                  value={publish.groupCode ?? ''}
+                  onChange={(e) => update('publish', { groupCode: e.target.value })}
+                  placeholder="groupCode（可选）"
+                />
+              </Field>
+              <Field label="API Key" htmlFor="publish-api-key" hint="开启安全校验时必填" className="sm:col-span-2">
+                <Input
+                  id="publish-api-key"
+                  type="password"
+                  value={publish.apiKey ?? ''}
+                  onChange={(e) => update('publish', { apiKey: e.target.value })}
+                  placeholder="HubStudio API Key（可选）"
+                />
+              </Field>
+            </>
+          )}
           <Field label="连接测试" className="sm:col-span-2">
             <div className="flex items-center gap-3">
               <Button

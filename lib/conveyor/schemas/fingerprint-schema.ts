@@ -15,6 +15,12 @@ export const fpGroupSchema = z.object({
 export const fpConnSchema = z.object({
   apiHost: z.string(),
   apiPort: z.string(),
+  apiKey: z.string().optional(),
+  fingerprintType: z.enum(['ixbrowser', 'hubstudio']).default('ixbrowser'),
+  /** HubStudio 客户端登录凭证 */
+  appId: z.string().optional(),
+  appSecret: z.string().optional(),
+  groupCode: z.string().optional(),
 })
 
 export const fpOpenWindowReturnSchema = z.object({

@@ -1,5 +1,5 @@
 import { randomUUID } from 'crypto'
-import { selectAdapter } from '@/lib/main/fingerprint'
+import { getAdapter } from '@/lib/main/fingerprint'
 import type { AppSettings } from '@/lib/conveyor/schemas/settings-schema'
 import type { FpWindow } from '@/lib/conveyor/schemas/fingerprint-schema'
 import type { ScriptEvent } from '@/lib/conveyor/schemas/script-schema'
@@ -55,8 +55,8 @@ const runThread = async (
   totalTasks: number
 ): Promise<boolean> => {
   const { settings, emit } = ctx
-  const adapter = selectAdapter()
-  const conn = { apiHost: settings.publish.apiHost, apiPort: settings.publish.apiPort }
+  const conn = { apiHost: settings.publish.apiHost, apiPort: settings.publish.apiPort, apiKey: settings.publish.apiKey, fingerprintType: settings.publish.fingerprintType, appId: settings.publish.appId, appSecret: settings.publish.appSecret, groupCode: settings.publish.groupCode }
+  const adapter = getAdapter(conn)
 
   // 通过指纹浏览器打开窗口获取 CDP 调试端口
   let debugPort = 9333
@@ -117,8 +117,8 @@ export const startScript = async (
   }
   runs.set(runId, ctx)
 
-  const adapter = selectAdapter()
-  const conn = { apiHost: settings.publish.apiHost, apiPort: settings.publish.apiPort }
+  const conn = { apiHost: settings.publish.apiHost, apiPort: settings.publish.apiPort, apiKey: settings.publish.apiKey, fingerprintType: settings.publish.fingerprintType, appId: settings.publish.appId, appSecret: settings.publish.appSecret, groupCode: settings.publish.groupCode }
+  const adapter = getAdapter(conn)
 
   // 1. 拉取窗口列表
   let windows: FpWindow[] = []

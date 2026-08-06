@@ -28,7 +28,7 @@ export const WindowListPanel = () => {
   const { settings } = useSettings()
   const { listWindows, openWindow, closeWindow, getOpenedWindows } = useConveyor('fingerprint')
   const scriptApi = useConveyor('script')
-  const { apiHost, apiPort } = settings.publish
+  const { apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode } = settings.publish
   const running = useScriptRunStore((s) => s.running)
   const paused = useScriptRunStore((s) => s.paused)
   const runId = useScriptRunStore((s) => s.runId)
@@ -40,7 +40,7 @@ export const WindowListPanel = () => {
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
   const [publishing, setPublishing] = useState(false)
 
-  const conn = { apiHost, apiPort }
+  const conn = { apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode }
 
   const load = useCallback(() => {
     setLoading(true)
@@ -57,7 +57,7 @@ export const WindowListPanel = () => {
       .finally(() => {
         setLoading(false)
       })
-  }, [listWindows, apiHost, apiPort])
+  }, [listWindows, apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode])
 
   useEffect(() => {
     load()

@@ -1,12 +1,11 @@
 import { handle } from '@/lib/main/shared'
-import { selectAdapter } from '@/lib/main/fingerprint'
+import { getAdapter } from '@/lib/main/fingerprint'
 
 export const registerFingerprintHandlers = () => {
-  const adapter = selectAdapter()
-  handle('fingerprint-test-connection', (conn) => adapter.testConnection(conn))
-  handle('fingerprint-list-windows', (conn) => adapter.listWindows(conn))
-  handle('fingerprint-list-groups', (conn) => adapter.listGroups(conn))
-  handle('fingerprint-open-window', (conn, profileId) => adapter.openWindow(conn, profileId))
-  handle('fingerprint-close-window', (conn, profileId) => adapter.closeWindow(conn, profileId))
-  handle('fingerprint-get-opened-windows', (conn) => adapter.getOpenedWindows(conn))
+  handle('fingerprint-test-connection', (conn) => getAdapter(conn).testConnection(conn))
+  handle('fingerprint-list-windows', (conn) => getAdapter(conn).listWindows(conn))
+  handle('fingerprint-list-groups', (conn) => getAdapter(conn).listGroups(conn))
+  handle('fingerprint-open-window', (conn, profileId) => getAdapter(conn).openWindow(conn, profileId))
+  handle('fingerprint-close-window', (conn, profileId) => getAdapter(conn).closeWindow(conn, profileId))
+  handle('fingerprint-get-opened-windows', (conn) => getAdapter(conn).getOpenedWindows(conn))
 }

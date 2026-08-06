@@ -3,6 +3,12 @@ import { z } from 'zod'
 export const publishSettingsSchema = z.object({
   apiHost: z.string(),
   apiPort: z.string(),
+  apiKey: z.string().optional(),
+  fingerprintType: z.enum(['ixbrowser', 'hubstudio']).default('ixbrowser'),
+  /** HubStudio 客户端登录凭证 */
+  appId: z.string().optional(),
+  appSecret: z.string().optional(),
+  groupCode: z.string().optional(),
   group: z.string(),
   windowSeq: z.string(),
   threads: z.string(),
@@ -61,6 +67,11 @@ export const DEFAULT_SETTINGS: AppSettings = {
   publish: {
     apiHost: 'http://127.0.0.1',
     apiPort: '53200',
+    apiKey: '',
+    fingerprintType: 'ixbrowser',
+    appId: '',
+    appSecret: '',
+    groupCode: '',
     group: 'all',
     windowSeq: '',
     threads: '1',
