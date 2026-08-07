@@ -88,7 +88,7 @@ const runThread = async (
     runId: ctx.runId,
     threadId,
     level: 'info',
-    message: `窗口 ${window.name} 开始发布任务，closeAfterPublish=${closeAfterPublish}（${typeof settings.publish.closeAfterPublish}）`,
+    message: `窗口 ${window.name} 开始发布任务，发布策略: perAccount=${perAccount}, rounds=${rounds}, totalTasks=${perAccount * rounds}, uploadWait=${uploadWait}s, detectWait=${detectWait}s, closeAfterPublish=${closeAfterPublish}, closeWait=${closeWait}s`,
     ts: Date.now(),
   })
 
@@ -96,6 +96,15 @@ const runThread = async (
   const override = settings.windowOverrides?.[window.id]
   const material = { ...settings.material, ...(override?.material ?? {}) }
   const works = { ...settings.works, ...(override?.works ?? {}) }
+
+  emit({
+    type: 'log',
+    runId: ctx.runId,
+    threadId,
+    level: 'info',
+    message: `发布素材: videoFolder=${material.videoFolder}, videoMode=${material.videoMode}, sentFileAction=${material.sentFileAction}, title=${works.title || '(空)'}, hashtags=${works.hashtags || '(空)'}`,
+    ts: Date.now(),
+  })
 
   const result = await publish(
     {
