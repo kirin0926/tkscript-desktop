@@ -298,6 +298,16 @@ export const PublishSettingsPanel = () => {
               onCheckedChange={(checked) => update('publish', { closeAfterPublish: checked })}
             />
           </div>
+          <Field label="关闭窗口前等待时间（秒）" htmlFor="publish-close-wait" hint="发布完成后等待一段时间再关闭窗口（建议 10-20 秒）">
+            <Input
+              id="publish-close-wait"
+              type="number"
+              min={0}
+              value={publish.closeWait}
+              disabled={!publish.closeAfterPublish}
+              onChange={(e) => update('publish', { closeWait: e.target.value })}
+            />
+          </Field>
         </FormSection>
       </div>
     </PanelShell>

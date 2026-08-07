@@ -17,6 +17,23 @@ const mergeWithDefaults = (raw: unknown): AppSettings => {
   const pick = (key: keyof AppSettings) =>
     typeof source[key] === 'object' && source[key] !== null ? (source[key] as Record<string, unknown>) : {}
 
+  // 清理窗口覆盖中因 Zod .default() 误写入的 sentFileAction
+  const rawOverrides = source.windowOverrides as Record<string, unknown> | undefined
+  const cleanedOverrides: Record<string, unknown> = {}
+  if (rawOverrides) {
+    for (const [winId, override] of Object.entries(rawOverrides)) {
+      if (override && typeof override === 'object') {
+        const ov = override as Record<string, unknown>
+        if (ov.material && typeof ov.material === 'object') {
+          const { sentFileAction: _strip, ...materialRest } = ov.material as Record<string, unknown>
+          cleanedOverrides[winId] = { ...ov, material: materialRest }
+        } else {
+          cleanedOverrides[winId] = ov
+        }
+      }
+    }
+  }
+
   const merged = {
     publish: { ...DEFAULT_SETTINGS.publish, ...pick('publish') },
     works: { ...DEFAULT_SETTINGS.works, ...pick('works') },
@@ -24,7 +41,7 @@ const mergeWithDefaults = (raw: unknown): AppSettings => {
     profile: { ...DEFAULT_SETTINGS.profile, ...pick('profile') },
     windowOverrides: {
       ...DEFAULT_SETTINGS.windowOverrides,
-      ...(source.windowOverrides as Record<string, unknown> | undefined),
+      ...cleanedOverrides,
     },
   }
 

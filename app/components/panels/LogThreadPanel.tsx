@@ -91,7 +91,7 @@ export const LogThreadPanel = () => {
         </div>
 
         <div className="flex-1 overflow-hidden rounded-md border border-border">
-          <ScrollArea className="h-full">
+          <ScrollArea className="h-full" selectable>
             {selectedLogs.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
                 <Inbox className="size-6" />

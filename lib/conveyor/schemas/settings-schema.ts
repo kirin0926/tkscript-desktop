@@ -19,6 +19,8 @@ export const publishSettingsSchema = z.object({
   detectWait: z.string(),
   /** 发布完成后关闭当前窗口环境 */
   closeAfterPublish: z.boolean().default(false),
+  /** 发布完成后关闭窗口前的等待时间（秒） */
+  closeWait: z.string(),
 })
 
 export const worksSettingsSchema = z.object({
@@ -41,10 +43,18 @@ export const profileSettingsSchema = z.object({
   signature: z.string(),
 })
 
+/** 窗口覆盖专用的素材设置 schema（不带 .default()，避免覆盖全局设置） */
+export const materialOverrideSchema = z.object({
+  videoFolder: z.string().optional(),
+  videoMode: z.enum(['sequential', 'random']).optional(),
+  runMode: z.enum(['single', 'loop']).optional(),
+  sentFileAction: z.enum(['keep', 'mark', 'delete']).optional(),
+})
+
 /** 单个窗口的覆盖设置（与全局设置合并使用） */
 export const windowOverrideSchema = z.object({
   profile: profileSettingsSchema.partial().optional(),
-  material: materialSettingsSchema.partial().optional(),
+  material: materialOverrideSchema.optional(),
   works: worksSettingsSchema.partial().optional(),
 })
 
@@ -86,6 +96,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     uploadWait: '30',
     detectWait: '30',
     closeAfterPublish: false,
+    closeWait: '15',
   },
   works: {
     title: '',

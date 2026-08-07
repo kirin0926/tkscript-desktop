@@ -81,6 +81,7 @@ const runThread = async (
   const uploadWait = parseInt(settings.publish.uploadWait, 10) || 30
   const detectWait = parseInt(settings.publish.detectWait, 10) || 30
   const closeAfterPublish = settings.publish.closeAfterPublish ?? false
+  const closeWait = parseInt(settings.publish.closeWait, 10) || 15
 
   emit({
     type: 'log',
@@ -125,9 +126,13 @@ const runThread = async (
       runId: ctx.runId,
       threadId,
       level: 'info',
-      message: `发布任务完成，关闭窗口环境: ${window.name}`,
+      message: `发布任务完成，${closeWait} 秒后关闭窗口环境: ${window.name}`,
       ts: Date.now(),
     })
+    // 发布完成后等待一段时间再关闭窗口，确保 TikTok 完成发布收尾
+    if (closeWait > 0) {
+      await sleep(closeWait * 1000)
+    }
     try {
       const closed = await adapter.closeWindow(conn, window.id)
       if (closed) {
@@ -349,3 +354,9 @@ export const cleanupAllRuns = (): void => {
   runs.clear()
   pauseFlags.clear()
 }
+
+// ---------------------------------------------------------------------------
+// 工具
+// ---------------------------------------------------------------------------
+
+const sleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms))
