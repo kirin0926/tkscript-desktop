@@ -354,6 +354,9 @@ const uploadVideo = async (page: Page, videoPath: string, log: (level: ScriptLog
   }
   log('info', `视频文件已确认: ${videoPath}`)
 
+  // 上传前先关闭可能出现的弹窗（新手引导教程等），避免遮挡上传按钮
+  await dismissDialogs(page)
+
   // ------------------------------------------------------------------
   // 1) 点击可见按钮，捕获 filechooser 事件设置文件
   //    这是 React 隐藏 input 方案最可靠的方式：模拟真实用户点击触发
@@ -582,11 +585,18 @@ const dismissDialogs = async (page: Page): Promise<void> => {
     'button:has-text("Schedule")',
     'button:has-text("Don\'t schedule")',
     'button:has-text("不排期")',
+    'button:has-text("Got it")',
+    'button:has-text("Skip")',
+    'button:has-text("跳过")',
+    'button:has-text("Next")',
+    'button:has-text("下一步")',
     '[aria-label="Close"]',
     '[data-e2e="dialog-close"]',
     // TikTok 通用弹窗关闭按钮（X）
     '.common-modal-close-icon',
     '.common-modal-close',
+    // 新手引导教程弹窗
+    '.tutorial-tooltip button',
   ]
 
   for (const selector of closeSelectors) {
@@ -749,6 +759,9 @@ export const publish = async (params: PublishParams, emit: EventEmitter): Promis
         success = false
         break
       }
+
+      // 打开上传页面后可能弹出新手引导教程弹窗，先关闭再上传
+      await dismissDialogs(page)
 
       // ---- 步骤 2 ----
       step('选择视频上传', i, totalTasks)
