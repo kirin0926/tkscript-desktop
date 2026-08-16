@@ -55,6 +55,7 @@ export const WindowListPanel = () => {
 
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
   const [publishing, setPublishing] = useState(false)
+  const lastClickedId = useRef<string | null>(null)
 
   const conn = { apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode }
 
@@ -207,6 +208,17 @@ export const WindowListPanel = () => {
 
   const toggleOne = (id: string, checked: boolean) => {
     store.toggleOne(id, checked)
+    if (checked) lastClickedId.current = id
+  }
+
+  /** Shift 点击：从最近一次点击的行到当前行，整段全选（基于展示顺序的索引） */
+  const handleShiftSelect = (id: string) => {
+    const anchorId = lastClickedId.current ?? id
+    const indexOfCurrent = windows.findIndex((row) => row.id === id)
+    const indexOfAnchor = windows.findIndex((row) => row.id === anchorId)
+    const [start, end] = [Math.min(indexOfCurrent, indexOfAnchor), Math.max(indexOfCurrent, indexOfAnchor)]
+    const rangeIds = windows.slice(start, end + 1).map((row) => row.id)
+    store.setSelectedIds([...new Set([...selectedIds, ...rangeIds])])
   }
 
   // 把 selectedIds 转成 Set 方便 O(1) 查找
@@ -320,6 +332,14 @@ export const WindowListPanel = () => {
                     <TableCell>
                       <Checkbox
                         checked={checked}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (e.shiftKey) {
+                            // Shift+点击：无论当前行选否，都以它为终点做区段全选
+                            handleShiftSelect(row.id)
+                            e.preventDefault() // 阻止 radix 内部触发 toggle
+                          }
+                        }}
                         onCheckedChange={(value) => toggleOne(row.id, value === true)}
                         aria-label={`选择 ${row.name}`}
                       />
