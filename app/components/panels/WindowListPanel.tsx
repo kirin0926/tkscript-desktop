@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Play, Pause, Square, RotateCcw, RefreshCw, Loader2, CheckCheck } from 'lucide-react'
+import { Play, Pause, Square, RotateCcw, RefreshCw, Loader2, CheckCheck, Layers } from 'lucide-react'
 import { useSettings } from '@/app/components/settings/SettingsContext'
 import { useConveyor } from '@/app/hooks/use-conveyor'
 import { useScriptRunStore } from '@/app/stores/script-run-store'
@@ -13,6 +13,7 @@ import type { FpWindow } from '@/lib/conveyor/schemas/fingerprint-schema'
 import type { OverridableSection } from '@/lib/conveyor/schemas/settings-schema'
 import { PanelShell } from './panel-kit'
 import { PerWindowSettingsDialog } from './PerWindowSettingsDialog'
+import { BatchMaterialDialog } from './BatchMaterialDialog'
 
 const STATUS_TEXT: Record<FpWindow['status'], string> = {
   online: '在线',
@@ -55,6 +56,7 @@ export const WindowListPanel = () => {
 
   const [actionLoading, setActionLoading] = useState<Set<string>>(new Set())
   const [publishing, setPublishing] = useState(false)
+  const [batchOpen, setBatchOpen] = useState(false)
   const lastClickedId = useRef<string | null>(null)
 
   const conn = { apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode }
@@ -267,6 +269,21 @@ export const WindowListPanel = () => {
               <CheckCheck className="size-3" />
               一键勾选
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (selectedIds.length === 0) {
+                  toast.error('请先选择要设置的窗口')
+                  return
+                }
+                setBatchOpen(true)
+              }}
+            >
+              <Layers className="size-3" />
+              批量设置素材
+            </Button>
             <div className="ml-auto flex items-center gap-2">
               <Button type="button" variant="outline" size="sm" onClick={handleRefreshOpened} disabled={loading}>
                 <Play className="size-3" />
@@ -445,6 +462,11 @@ export const WindowListPanel = () => {
           </Table>
         </div>
       )}
+      <BatchMaterialDialog
+        open={batchOpen}
+        onOpenChange={setBatchOpen}
+        windows={windows.filter((row) => selectedIds.includes(row.id))}
+      />
     </PanelShell>
   )
 }
