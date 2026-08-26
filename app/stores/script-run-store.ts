@@ -9,6 +9,8 @@ export interface ThreadState {
   current: number
   total: number
   step: string
+  /** 线程启动时间，用于按打开顺序排序 */
+  startedAt: number
   updatedAt: number
 }
 
@@ -81,6 +83,7 @@ export const useScriptRunStore = create<ScriptRunState>((set) => ({
           current: 0,
           total: 0,
           step: '启动中',
+          startedAt: Date.now(),
           updatedAt: Date.now(),
         })
         return { ...state, threads: next, selectedThreadId: state.selectedThreadId ?? event.threadId }

@@ -42,7 +42,16 @@ export const LogThreadPanel = () => {
   const selectedThreadId = useScriptRunStore((s) => s.selectedThreadId)
   const setSelection = useScriptRunStore((s) => s.setSelection)
 
-  const threadList = useMemo(() => Array.from(threads.values()).sort((a, b) => a.threadId.localeCompare(b.threadId)), [threads])
+  /** threadId 形如 "{runId}-{序号}"，取末尾数字作为同批次的执行顺序 */
+  const threadSeq = (threadId: string) => Number(threadId.slice(threadId.lastIndexOf('-') + 1)) || 0
+
+  const threadList = useMemo(
+    () =>
+      Array.from(threads.values()).sort(
+        (a, b) => a.startedAt - b.startedAt || threadSeq(a.threadId) - threadSeq(b.threadId)
+      ),
+    [threads]
+  )
 
   const selectedLogs = useMemo(() => (selectedThreadId ? logs.get(selectedThreadId) ?? [] : []), [logs, selectedThreadId])
 
