@@ -5,6 +5,10 @@ export const fpWindowSchema = z.object({
   name: z.string(),
   status: z.enum(['online', 'running', 'offline']),
   id: z.string(),
+  /** 所属分组 ID（未分组为 ungrouped，可能缺失） */
+  groupId: z.string().optional(),
+  /** 所属分组名称 */
+  groupName: z.string().optional(),
 })
 
 export const fpGroupSchema = z.object({

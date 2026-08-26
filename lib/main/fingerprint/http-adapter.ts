@@ -129,9 +129,7 @@ interface IxProfileRow {
   name?: string
   group_id?: string
   status?: number
-}
-
-// ixBrowser /api/v2/group-list 返回数据条目结构
+}// ixBrowser /api/v2/group-list 返回数据条目结构
 interface IxGroupRow {
   group_id?: string
   id?: string
@@ -230,6 +228,7 @@ export const httpAdapter: FingerprintAdapter = {
         name: row.name ?? `窗口 ${String(idx + 1).padStart(2, '0')}`,
         status,
         id: String(row.profile_id ?? row.id ?? ''),
+        groupId: row.group_id ? String(row.group_id) : undefined,
       }
     })
   },

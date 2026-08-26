@@ -262,6 +262,8 @@ export const hubstudioAdapter: FingerprintAdapter = {
         name: item.containerName ?? `窗口 ${String(idx + 1).padStart(2, '0')}`,
         status,
         id: containerCode,
+        groupId: item.tagCode != null ? String(item.tagCode) : 'ungrouped',
+        groupName: item.tagName ?? undefined,
       }
     })
   },
@@ -344,6 +346,8 @@ export const hubstudioAdapter: FingerprintAdapter = {
         name: item.containerName ?? `窗口 ${String(idx + 1).padStart(2, '0')}`,
         status: 'running' as const,
         id: String(item.containerCode ?? ''),
+        groupId: item.tagCode != null ? String(item.tagCode) : 'ungrouped',
+        groupName: item.tagName ?? undefined,
       }))
   },
 }

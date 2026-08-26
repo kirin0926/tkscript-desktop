@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Play, Pause, Square, RotateCcw, RefreshCw, Loader2, CheckCheck, Layers } from 'lucide-react'
+import { Play, Pause, Square, RotateCcw, RefreshCw, Loader2, CheckCheck, Layers, FolderOpen } from 'lucide-react'
 import { useSettings } from '@/app/components/settings/SettingsContext'
 import { useConveyor } from '@/app/hooks/use-conveyor'
 import { useScriptRunStore } from '@/app/stores/script-run-store'
 import { useWindowListStore } from '@/app/stores/window-list-store'
 import { toast } from 'sonner'
+import type { FpWindow, FpGroup } from '@/lib/conveyor/schemas/fingerprint-schema'
 import { Badge } from '@/app/components/ui/badge'
 import { Button } from '@/app/components/ui/button'
 import { Checkbox } from '@/app/components/ui/checkbox'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/app/components/ui/table'
-import type { FpWindow } from '@/lib/conveyor/schemas/fingerprint-schema'
 import type { OverridableSection } from '@/lib/conveyor/schemas/settings-schema'
 import { PanelShell } from './panel-kit'
 import { PerWindowSettingsDialog } from './PerWindowSettingsDialog'
@@ -29,6 +30,7 @@ const STATUS_VARIANT: Record<FpWindow['status'], 'default' | 'secondary' | 'outl
 
 const VIDEO_MODE_TEXT: Record<string, string> = { sequential: '顺序', random: '随机' }
 const RUN_MODE_TEXT: Record<string, string> = { single: '单次', loop: '循环' }
+const VIDEO_FILE_PATTERN = /\.(mp4|mov|avi|mkv|webm|flv)$/i
 
 /** 设置单元格中的一行 标签:值 展示，带截断与覆盖标记 */
 const SettingRow = ({ label, value, overridden }: { label: string; value: string; overridden?: boolean }) => (
@@ -43,8 +45,9 @@ const SettingRow = ({ label, value, overridden }: { label: string; value: string
 
 export const WindowListPanel = () => {
   const { settings } = useSettings()
-  const { listWindows, openWindow, closeWindow, getOpenedWindows } = useConveyor('fingerprint')
+  const { listWindows, listGroups, openWindow, closeWindow, getOpenedWindows } = useConveyor('fingerprint')
   const scriptApi = useConveyor('script')
+  const { listFiles } = useConveyor('app')
   const { apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode } = settings.publish
   const running = useScriptRunStore((s) => s.running)
   const paused = useScriptRunStore((s) => s.paused)
@@ -60,6 +63,44 @@ export const WindowListPanel = () => {
   const lastClickedId = useRef<string | null>(null)
 
   const conn = { apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode }
+
+  // ── 分组：获取分组列表 + 当前选中分组（all = 全部）──
+  const [groups, setGroups] = useState<FpGroup[]>([{ id: 'all', name: '全部分组' }])
+  const [groupsLoading, setGroupsLoading] = useState(false)
+  const [selectedGroup, setSelectedGroup] = useState('all')
+
+  const loadGroups = useCallback(() => {
+    setGroupsLoading(true)
+    listGroups(conn)
+      .then((items) => {
+        // 兜底保证第一项是「全部分组」
+        const rest = items.filter((g) => g.id !== 'all')
+        setGroups([{ id: 'all', name: '全部分组' }, ...rest])
+      })
+      .catch((err) => {
+        console.error('获取分组失败:', err)
+        toast.error('获取分组失败', { description: err instanceof Error ? err.message : String(err) })
+      })
+      .finally(() => setGroupsLoading(false))
+  }, [listGroups, apiHost, apiPort, apiKey, fingerprintType, appId, appSecret, groupCode])
+
+  // 首次挂载获取一次分组列表
+  useEffect(() => {
+    loadGroups()
+  }, [loadGroups])
+
+  /** 按分组过滤后的窗口列表 */
+  const displayedWindows = useMemo(
+    () => (selectedGroup === 'all' ? windows : windows.filter((row) => row.groupId === selectedGroup)),
+    [windows, selectedGroup]
+  )
+
+  /** 切换分组：过滤展示并自动勾选该分组下的所有窗口 */
+  const handleGroupChange = (groupId: string) => {
+    setSelectedGroup(groupId)
+    if (groupId === 'all') return
+    store.setSelectedIds(windows.filter((row) => row.groupId === groupId).map((row) => row.id))
+  }
 
   // ── 加载窗口列表（显示 loading 动画） ──
   const load = useCallback(() => {
@@ -119,6 +160,43 @@ export const WindowListPanel = () => {
     }
   }
 
+  /** 窗口的有效素材设置 = 全局设置 + 窗口覆盖设置合并 */
+  const effectiveMaterialOf = useCallback(
+    (id: string) => ({ ...settings.material, ...(settings.windowOverrides?.[id]?.material ?? {}) }),
+    [settings.material, settings.windowOverrides]
+  )
+
+  /**
+   * 发布前校验：检查每个窗口绑定的视频文件夹是否存在且包含视频文件。
+   * 返回错误信息列表（为空表示全部通过），相同文件夹只读取一次。
+   */
+  const validateVideoFolders = useCallback(
+    async (rows: FpWindow[]): Promise<string[]> => {
+      const folderOf = (row: FpWindow) => effectiveMaterialOf(row.id).videoFolder.trim()
+      // 相同路径的文件夹只检查一次
+      const problems = new Map<string, string>()
+      await Promise.all(
+        [...new Set(rows.map(folderOf).filter(Boolean))].map(async (folder) => {
+          try {
+            const files = await listFiles(folder)
+            if (!files.some((f) => VIDEO_FILE_PATTERN.test(f))) {
+              problems.set(folder, '没有视频文件')
+            }
+          } catch {
+            problems.set(folder, '无法读取，请检查路径是否有效')
+          }
+        })
+      )
+      return rows.flatMap((row) => {
+        const folder = folderOf(row)
+        if (!folder) return [`「${row.name}」未绑定视频文件夹`]
+        const problem = problems.get(folder)
+        return problem ? [`「${row.name}」的视频文件夹${problem}`] : []
+      })
+    },
+    [effectiveMaterialOf, listFiles]
+  )
+
   const handleStart = async () => {
     if (selectedIds.length === 0) {
       toast.error('请先选择要发布的窗口')
@@ -127,10 +205,17 @@ export const WindowListPanel = () => {
     setPublishing(true)
     try {
       // 将选中窗口的 seq 转换为 windowSeq 字符串（如 "1,3,5"）
-      const seqs = windows
-        .filter((row) => selectedIds.includes(row.id))
-        .map((row) => row.seq)
-        .sort((a, b) => a - b)
+      const selectedRows = windows.filter((row) => selectedIds.includes(row.id))
+      // 开始发布前校验选中窗口的视频文件夹是否有可用素材
+      const errors = await validateVideoFolders(selectedRows)
+      if (errors.length > 0) {
+        toast.error('部分窗口视频文件夹不可用，已取消发布', {
+          description:
+            errors.length <= 3 ? errors.join('；') : `${errors.slice(0, 3).join('；')} 等共 ${errors.length} 个问题`,
+        })
+        return
+      }
+      const seqs = selectedRows.map((row) => row.seq).sort((a, b) => a - b)
       const windowSeq = seqs.join(',')
       // 临时覆盖 windowSeq，只发布勾选的窗口
       const updatedSettings = { ...settings, publish: { ...settings.publish, windowSeq } }
@@ -181,8 +266,8 @@ export const WindowListPanel = () => {
   }
 
   const handleSelectAll = () => {
-    const allIds = windows.map((row) => row.id)
-    store.toggleAll(selectedIds.length !== windows.length, allIds)
+    const allIds = displayedWindows.map((row) => row.id)
+    store.toggleAll(selectedIds.length !== displayedWindows.length, allIds)
   }
 
   const handleRefreshOpened = async () => {
@@ -200,12 +285,12 @@ export const WindowListPanel = () => {
     }
   }
 
-  const allSelected = windows.length > 0 && selectedIds.length === windows.length
+  const allSelected = displayedWindows.length > 0 && selectedIds.length === displayedWindows.length
   const someSelected = selectedIds.length > 0 && !allSelected
   const headerState = allSelected ? true : someSelected ? 'indeterminate' : false
 
   const toggleAll = (checked: boolean) => {
-    store.toggleAll(checked, windows.map((row) => row.id))
+    store.toggleAll(checked, displayedWindows.map((row) => row.id))
   }
 
   const toggleOne = (id: string, checked: boolean) => {
@@ -216,23 +301,26 @@ export const WindowListPanel = () => {
   /** Shift 点击：从最近一次点击的行到当前行，整段全选（基于展示顺序的索引） */
   const handleShiftSelect = (id: string) => {
     const anchorId = lastClickedId.current ?? id
-    const indexOfCurrent = windows.findIndex((row) => row.id === id)
-    const indexOfAnchor = windows.findIndex((row) => row.id === anchorId)
+    const indexOfCurrent = displayedWindows.findIndex((row) => row.id === id)
+    const indexOfAnchor = displayedWindows.findIndex((row) => row.id === anchorId)
     const [start, end] = [Math.min(indexOfCurrent, indexOfAnchor), Math.max(indexOfCurrent, indexOfAnchor)]
-    const rangeIds = windows.slice(start, end + 1).map((row) => row.id)
+    const rangeIds = displayedWindows.slice(start, end + 1).map((row) => row.id)
     store.setSelectedIds([...new Set([...selectedIds, ...rangeIds])])
   }
 
   // 把 selectedIds 转成 Set 方便 O(1) 查找
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds])
 
+  const groupLabel = groups.find((g) => g.id === selectedGroup)?.name
   const description = loading && windows.length === 0
     ? '正在加载窗口…'
     : loading
-      ? `共 ${windows.length} 个窗口，已选 ${selectedIds.length} 个（刷新中…）`
+      ? `共 ${displayedWindows.length} 个窗口，已选 ${selectedIds.length} 个（刷新中…）`
       : error && windows.length === 0
         ? '加载失败'
-        : `共 ${windows.length} 个窗口，已选 ${selectedIds.length} 个`
+        : selectedGroup === 'all'
+          ? `共 ${windows.length} 个窗口，已选 ${selectedIds.length} 个`
+          : `${groupLabel ?? '分组'}：共 ${displayedWindows.length} 个窗口，已选 ${selectedIds.length} 个`
 
   return (
     <PanelShell
@@ -285,6 +373,19 @@ export const WindowListPanel = () => {
               批量设置素材
             </Button>
             <div className="ml-auto flex items-center gap-2">
+              <Select value={selectedGroup} onValueChange={handleGroupChange}>
+                <SelectTrigger className="h-8 w-36 gap-1 text-xs" disabled={groupsLoading && groups.length <= 1}>
+                  <FolderOpen className="size-3 shrink-0 text-muted-foreground" />
+                  <SelectValue placeholder={groupsLoading ? '获取分组中…' : '选择分组'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button type="button" variant="outline" size="sm" onClick={handleRefreshOpened} disabled={loading}>
                 <Play className="size-3" />
                 已打开
@@ -333,7 +434,14 @@ export const WindowListPanel = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {windows.map((row) => {
+              {displayedWindows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center text-muted-foreground">
+                    该分组下暂无窗口
+                  </TableCell>
+                </TableRow>
+              ) : (
+              displayedWindows.map((row) => {
                 const checked = selectedSet.has(row.id)
                 const isLoading = actionLoading.has(row.id)
                 const isRunning = row.status === 'running' || row.status === 'online'
@@ -455,9 +563,10 @@ export const WindowListPanel = () => {
                         <PerWindowSettingsDialog window={row} />
                       </div>
                     </TableCell>
-                  </TableRow>
-                )
-              })}
+                   </TableRow>
+                 )
+               })
+              )}
             </TableBody>
           </Table>
         </div>
