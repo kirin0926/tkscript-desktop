@@ -3,7 +3,11 @@ productName: electron-react-app
 asar: true
 asarUnpack:
   - resources/**
-  - lib/main/db/migrations/**
+# drizzle 迁移文件:构建产物 out/main/migrations 复制到 resources/migrations,
+# 供打包模式下 getMigrationsPath() 读取(process.resourcesPath + '/migrations')
+extraResources:
+  - from: out/main/migrations
+    to: migrations
 directories:
   buildResources: resources/build
 files:
