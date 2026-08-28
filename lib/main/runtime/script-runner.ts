@@ -216,34 +216,55 @@ export const startScript = async (
     emit({
       type: 'run-aborted',
       runId,
-      reason: err instanceof Error ? err.message : '拉取窗口失败',
+      reason: `拉取窗口失败：${err instanceof Error ? err.message : '未知错误'}`,
     })
     runs.delete(runId)
     return { runId }
   }
 
-  // 2. 过滤分组
-  if (settings.publish.group && settings.publish.group !== 'all') {
-    windows = windows.filter((w) => w.id === settings.publish.group)
+  // 2. 解析目标窗口：优先按勾选的窗口 ID 精确匹配；否则按分组 + 序列号
+  const windowIds = settings.publish.windowIds ?? []
+  let chosen: FpWindow[]
+  if (windowIds.length > 0) {
+    const idSet = new Set(windowIds)
+    chosen = windows.filter((w) => idSet.has(w.id))
+  } else {
+    let candidates = windows
+    if (settings.publish.group && settings.publish.group !== 'all') {
+      candidates = candidates.filter((w) => w.groupId === settings.publish.group)
+    }
+    const indices = parseWindowSeq(settings.publish.windowSeq, candidates.length)
+    chosen = indices.map((i) => candidates[i]).filter(Boolean)
   }
 
-  // 3. 解析序列下标
-  const indices = parseWindowSeq(settings.publish.windowSeq, windows.length)
-  const chosen = indices.map((i) => windows[i]).filter(Boolean)
-
   if (chosen.length === 0) {
-    emit({ type: 'run-aborted', runId, reason: '没有匹配的窗口' })
+    emit({
+      type: 'run-aborted',
+      runId,
+      reason: windowIds.length > 0 ? '勾选的窗口不在最新窗口列表中，请刷新窗口列表后重试' : '没有匹配的窗口',
+    })
     runs.delete(runId)
     return { runId }
   }
 
-  // 4. 并发调度
+  // 3. 并发调度（后台执行，立即返回 runId，避免 IPC 一直等到任务结束）
   const threads = parseInt(settings.publish.threads, 10) || 1
   const perAccount = parseInt(settings.publish.perAccount, 10) || 1
   const rounds = parseInt(settings.publish.rounds, 10) || 1
   const totalTasks = perAccount * rounds
 
   emit({ type: 'run-started', runId, totalThreads: chosen.length })
+  void scheduleRun(ctx, chosen, totalTasks)
+  return { runId }
+}
+
+/**
+ * 后台并发调度：从队列中取窗口交给空闲线程执行，
+ * 全部结束后清理运行状态并发出 run-finished / run-aborted 事件。
+ */
+const scheduleRun = async (ctx: RunContext, chosen: FpWindow[], totalTasks: number): Promise<void> => {
+  const { runId, settings, emit, abortController } = ctx
+  const threads = parseInt(settings.publish.threads, 10) || 1
 
   const queue = [...chosen]
   let failedCount = 0
@@ -277,7 +298,20 @@ export const startScript = async (
       }
       active++
       const threadId = `${runId}-${chosen.length - queue.length}`
-      const ok = await runThread(ctx, threadId, window, totalTasks)
+      // 单线程异常不能拖垮整个调度（否则 run 永远不会结束）
+      let ok = false
+      try {
+        ok = await runThread(ctx, threadId, window, totalTasks)
+      } catch (err) {
+        emit({
+          type: 'log',
+          runId,
+          threadId,
+          level: 'error',
+          message: `线程异常终止: ${err instanceof Error ? err.message : String(err)}`,
+          ts: Date.now(),
+        })
+      }
       if (!ok) failedCount++
       active--
       next()
@@ -302,7 +336,6 @@ export const startScript = async (
       failedThreads: failedCount,
     })
   }
-  return { runId }
 }
 
 // ---------------------------------------------------------------------------

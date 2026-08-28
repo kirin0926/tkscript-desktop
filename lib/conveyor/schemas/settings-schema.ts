@@ -11,6 +11,8 @@ export const publishSettingsSchema = z.object({
   groupCode: z.string().optional(),
   group: z.string(),
   windowSeq: z.string(),
+  /** 本次启动勾选的窗口 ID 列表（仅随启动参数临时传递，不落盘；存在时优先于 windowSeq） */
+  windowIds: z.array(z.string()).optional(),
   threads: z.string(),
   perAccount: z.string(),
   rounds: z.string(),

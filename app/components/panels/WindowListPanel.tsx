@@ -204,7 +204,7 @@ export const WindowListPanel = () => {
     }
     setPublishing(true)
     try {
-      // 将选中窗口的 seq 转换为 windowSeq 字符串（如 "1,3,5"）
+      // 直接传勾选窗口的 ID 列表，主进程按 ID 精确匹配，避免二次拉取列表后 seq 错位
       const selectedRows = windows.filter((row) => selectedIds.includes(row.id))
       // 开始发布前校验选中窗口的视频文件夹是否有可用素材
       const errors = await validateVideoFolders(selectedRows)
@@ -215,15 +215,15 @@ export const WindowListPanel = () => {
         })
         return
       }
-      const seqs = selectedRows.map((row) => row.seq).sort((a, b) => a - b)
-      const windowSeq = seqs.join(',')
-      // 临时覆盖 windowSeq，只发布勾选的窗口
-      const updatedSettings = { ...settings, publish: { ...settings.publish, windowSeq } }
+      const windowIds = selectedRows.map((row) => row.id)
+      // 临时携带勾选的窗口 ID，只发布勾选的窗口
+      const updatedSettings = { ...settings, publish: { ...settings.publish, windowIds } }
       const result = await scriptApi.start(updatedSettings)
       if (!result.runId) {
         toast.error('启动发布失败：未返回 runId')
+        return
       }
-      toast.success('已开始发布任务')
+      // 成功提示由全局脚本事件（run-started）统一给出
     } catch (err) {
       console.error('启动发布失败:', err)
       toast.error('启动发布失败', { description: err instanceof Error ? err.message : String(err) })
